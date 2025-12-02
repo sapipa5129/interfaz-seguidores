@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Buscador de Seguidores</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Iconos Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .follower-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            will-change: transform; /* Optimización para móviles */
+        }
+
+        .follower-card:active {
+            transform: scale(0.98); /* Efecto de pulsación en móvil */
+        }
+
+        @media (min-width: 640px) {
+            .follower-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            }
+            .follower-card:active {
+                transform: translateY(-2px); /* Resetear efecto active en desktop si se desea */
+            }
+        }
+
+        /* Animación suave */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .animate-fade-in {
+            animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        /* Ocultar scrollbar en elementos horizontales si los hubiera */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col text-slate-800">
+
+    <!-- Header Sticky con efecto Glassmorphism -->
+    <div class="sticky top-0 z-30 w-full bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm transition-all duration-300">
+        <div class="max-w-6xl mx-auto px-4 py-3 sm:py-4">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                
+                <!-- Logo y Título -->
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="bg-indigo-600 p-2 rounded-lg text-white shadow-indigo-200 shadow-lg">
+                            <i data-lucide="users" class="h-5 w-5"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-xl font-bold text-slate-900 leading-tight">Seguidores</h1>
+                            <p class="text-xs text-slate-500 font-medium" id="headerCount">Cargando...</p>
+                        </div>
+                    </div>
+                    <!-- Solo visible en móvil, un indicador visual pequeño -->
+                    <div class="md:hidden text-xs font-semibold px-2 py-1 bg-slate-100 rounded-md text-slate-500">
+                        App Web
+                    </div>
+                </div>
+
+                <!-- Barra de búsqueda optimizada -->
+                <div class="relative w-full md:w-96 group">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i data-lucide="search" class="text-slate-400 h-5 w-5 group-focus-within:text-indigo-500 transition-colors"></i>
+                    </div>
+                    <!-- text-base en móvil previene zoom en iOS, text-sm en desktop es más elegante -->
+                    <input type="text" id="searchInput" 
+                        class="block w-full pl-10 pr-10 py-2.5 bg-slate-100 border-transparent border focus:bg-white focus:border-indigo-500 rounded-xl leading-5 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 text-base sm:text-sm transition-all duration-200 shadow-inner sm:shadow-none" 
+                        placeholder="Buscar usuario..." autocomplete="off">
+                    
+                    <!-- Botón limpiar búsqueda (oculto por defecto) -->
+                    <button id="clearSearch" class="absolute inset-y-0 right-0 pr-3 flex items-center hidden cursor-pointer">
+                        <i data-lucide="x-circle" class="text-slate-400 h-5 w-5 hover:text-slate-600"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenedor Principal -->
+    <main class="flex-grow max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6 w-full">
+        
+        <!-- Área de carga de archivo (Colapsable o más compacta en móvil) -->
+        <details class="mb-5 group bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+            <summary class="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 transition-colors list-none select-none">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-indigo-50 rounded-lg text-indigo-600">
+                        <i data-lucide="upload-cloud" class="h-5 w-5"></i>
+                    </div>
+                    <div class="flex flex-col text-left">
+                        <span class="font-semibold text-sm text-slate-800">Gestionar Base de Datos</span>
+                        <span class="text-xs text-slate-500">Toca para cargar nuevo CSV</span>
+                    </div>
+                </div>
+                <i data-lucide="chevron-down" class="h-5 w-5 text-slate-400 group-open:rotate-180 transition-transform duration-200"></i>
+            </summary>
+            <div class="p-4 pt-0 border-t border-slate-100 bg-slate-50/50">
+                <p class="text-sm text-slate-600 mb-3 mt-3">Si la lista está incompleta, sube tu archivo <code>listado.csv</code> aquí.</p>
+                <label class="w-full sm:w-auto flex items-center justify-center gap-2 cursor-pointer bg-white text-indigo-600 font-medium py-2.5 px-4 border border-indigo-200 rounded-lg shadow-sm hover:bg-indigo-50 active:bg-indigo-100 transition-colors">
+                    <i data-lucide="file-plus" class="h-4 w-4"></i>
+                    <span>Seleccionar Archivo</span>
+                    <input type="file" id="csvFileInput" accept=".csv" class="hidden">
+                </label>
+            </div>
+        </details>
+
+        <!-- Grid de resultados -->
+        <!-- grid-cols-1 en móvil, pero ajustado visualmente -->
+        <div id="resultsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 pb-20">
+            <!-- Las tarjetas se insertarán aquí vía JS -->
+        </div>
+
+        <!-- Estado Vacío -->
+        <div id="emptyState" class="hidden flex flex-col items-center justify-center py-16 text-center animate-fade-in">
+            <div class="bg-slate-100 p-5 rounded-full mb-4">
+                <i data-lucide="search-x" class="h-10 w-10 text-slate-400"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-slate-900">Sin resultados</h3>
+            <p class="text-slate-500 max-w-xs mx-auto mt-1">No hemos encontrado usuarios que coincidan con tu búsqueda.</p>
+            <button onclick="document.getElementById('searchInput').value = ''; document.getElementById('searchInput').dispatchEvent(new Event('input'));" class="mt-4 text-indigo-600 font-medium text-sm hover:underline">
+                Limpiar filtros
+            </button>
+        </div>
+    </main>
+
+    <script>
+        // Datos iniciales
+        const initialCsvData = `ID,Nombre Usuario,Enlace
+1,jessus._04,https://instagram.com/jessus._04
+2,andreeszabala._,https://instagram.com/andreeszabala._
+3,juanantonioo_05,https://instagram.com/juanantonioo_05
+4,_isabelpineda__,https://instagram.com/_isabelpineda__
+5,antonio_caruz,https://instagram.com/antonio_caruz
+6,peppisima,https://instagram.com/peppisima
+7,aaroncete_89____,https://instagram.com/aaroncete_89____
+8,don_vilima,https://instagram.com/don_vilima
+9,alvarocasti._,https://instagram.com/alvarocasti._
+10,ccuueennttaabboorraaddaaosi,https://instagram.com/ccuueennttaabboorraaddaaosi
+11,manuelma_7,https://instagram.com/manuelma_7
+12,missmariyou,https://instagram.com/missmariyou
+13,tradeos_fifa20_monedasgratis,https://instagram.com/tradeos_fifa20_monedasgratis
+14,panaa1989,https://instagram.com/panaa1989
+15,fort_dicas3254,https://instagram.com/fort_dicas3254
+16,brawl_sfan,https://instagram.com/brawl_sfan
+387,_droman,https://instagram.com/_droman
+388,lil.moreno2,https://instagram.com/lil.moreno2
+389,lucaasalcaantara_00,https://instagram.com/lucaasalcaantara_00
+390,mariard._,https://instagram.com/mariard._
+391,rey_mewin,https://instagram.com/rey_mewin
+392,ana_nlpriv2,https://instagram.com/ana_nlpriv2
+393,moribilla.privvao,https://instagram.com/moribilla.privvao
+394,gonzaloriiiveroo_,https://instagram.com/gonzaloriiiveroo_
+395,ireenegr__,https://instagram.com/ireenegr__
+396,pradeesromeero16,https://instagram.com/pradeesromeero16
+397,_caarmeencarmonaa_,https://instagram.com/_caarmeencarmonaa_
+398,mariaatrigueross_,https://instagram.com/mariaatrigueross_
+399,andres_an26,https://instagram.com/andres_an26
+400,daanielaafdezz._,https://instagram.com/daanielaafdezz._
+401,alexisnp12,https://instagram.com/alexisnp12`;
+
+        let followers = [];
+
+        // Elementos del DOM
+        const searchInput = document.getElementById('searchInput');
+        const clearSearchBtn = document.getElementById('clearSearch');
+        const resultsGrid = document.getElementById('resultsGrid');
+        const emptyState = document.getElementById('emptyState');
+        const headerCount = document.getElementById('headerCount');
+        const csvFileInput = document.getElementById('csvFileInput');
+
+        // Función para parsear CSV
+        function parseCSV(csvText) {
+            const lines = csvText.split(/\r?\n/);
+            const data = [];
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line) {
+                    const parts = line.split(',');
+                    if (parts.length >= 3) {
+                        data.push({
+                            id: parts[0].trim(),
+                            username: parts[1].trim(),
+                            link: parts[2].trim()
+                        });
+                    }
+                }
+            }
+            return data;
+        }
+
+        // Renderizado optimizado
+        function renderFollowers(list, searchTerm = '') {
+            resultsGrid.innerHTML = '';
+            
+            // Actualizar contador en header
+            headerCount.textContent = `${list.length} ${list.length === 1 ? 'usuario' : 'usuarios'}`;
+
+            if (list.length === 0) {
+                resultsGrid.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            resultsGrid.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+
+            // Fragmento para mejor rendimiento al insertar muchos nodos
+            const fragment = document.createDocumentFragment();
+
+            list.forEach((user, index) => {
+                const card = document.createElement('div');
+                // padding más ajustado en móvil (p-4)
+                card.className = 'follower-card bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-5 flex flex-row sm:flex-col items-center sm:items-stretch justify-between gap-4 h-auto sm:h-full animate-fade-in';
+                
+                // Animación solo para los primeros 20 para no ralentizar si hay 400
+                if (index < 20) {
+                    card.style.animationDelay = `${index * 0.03}s`;
+                }
+
+                let displayUsername = user.username;
+                if (searchTerm && searchTerm.length > 0) {
+                    const regex = new RegExp(`(${searchTerm})`, 'gi');
+                    displayUsername = user.username.replace(regex, '<mark class="bg-yellow-200 text-slate-900 rounded-sm px-0.5">$1</mark>');
+                }
+
+                // Diseño Flex Row en móvil (Avatar + Nombre izquierda, Botón derecha)
+                // Diseño Flex Col en Desktop (Avatar + Nombre arriba, Botón abajo)
+                card.innerHTML = `
+                    <div class="flex items-center gap-3 min-w-0 flex-1 sm:block sm:text-left sm:mb-4">
+                        <div class="flex-shrink-0 relative">
+                            <div class="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-slate-100 flex items-center justify-center text-indigo-600 border border-slate-200">
+                                <i data-lucide="instagram" class="h-5 w-5 sm:h-6 sm:w-6"></i>
+                            </div>
+                            <span class="absolute -top-1 -right-1 sm:top-0 sm:right-0 bg-slate-800 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold shadow-sm sm:hidden">
+                                #${user.id}
+                            </span>
+                        </div>
+                        <div class="min-w-0 sm:mt-3">
+                             <div class="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600 mb-1">
+                                ID: ${user.id}
+                            </div>
+                            <h3 class="text-base sm:text-lg font-bold text-slate-900 truncate pr-2" title="${user.username}">
+                                ${displayUsername}
+                            </h3>
+                        </div>
+                    </div>
+                    
+                    <a href="${user.link}" target="_blank" rel="noopener noreferrer" 
+                       class="flex-shrink-0 sm:w-full flex items-center justify-center h-10 w-10 sm:h-auto sm:w-auto sm:px-4 sm:py-2.5 rounded-lg sm:rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors shadow-sm sm:shadow-none">
+                        <span class="hidden sm:inline mr-2">Ver Perfil</span>
+                        <i data-lucide="external-link" class="h-5 w-5 sm:h-4 sm:w-4"></i>
+                    </a>
+                `;
+                fragment.appendChild(card);
+            });
+            
+            resultsGrid.appendChild(fragment);
+            lucide.createIcons();
+        }
+
+        // Lógica de búsqueda mejorada
+        function handleSearch(val) {
+            const searchTerm = val.toLowerCase().trim();
+            
+            // Mostrar/Ocultar botón limpiar
+            if (searchTerm.length > 0) {
+                clearSearchBtn.classList.remove('hidden');
+            } else {
+                clearSearchBtn.classList.add('hidden');
+            }
+
+            const filtered = followers.filter(user => 
+                user.username.toLowerCase().includes(searchTerm) || 
+                user.id.includes(searchTerm)
+            );
+            
+            renderFollowers(filtered, searchTerm);
+            // Scroll arriba para ver resultados nuevos si estamos muy abajo
+            if(window.scrollY > 200) window.scrollTo({top: 0, behavior: 'smooth'});
+        }
+
+        searchInput.addEventListener('input', (e) => handleSearch(e.target.value));
+        
+        clearSearchBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            handleSearch('');
+            searchInput.focus();
+        });
+
+        csvFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                followers = parseCSV(event.target.result);
+                searchInput.value = '';
+                handleSearch('');
+                // Cerrar detalle
+                document.querySelector('details').removeAttribute('open');
+            };
+            reader.readAsText(file);
+        });
+
+        // Inicialización
+        window.addEventListener('DOMContentLoaded', () => {
+            followers = parseCSV(initialCsvData);
+            renderFollowers(followers);
+        });
+
+    </script>
+</body>
+</html>
